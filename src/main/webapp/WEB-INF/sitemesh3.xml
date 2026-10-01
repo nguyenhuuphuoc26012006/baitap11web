@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemesh>
+    <decorator-prefix>/WEB-INF/jsp/decorators/</decorator-prefix>
+
+    <!-- Tai nguyen tinh: khong trang tri -->
+    <mapping path="/css/*" exclude="true"/>
+    <mapping path="/js/*" exclude="true"/>
+    <mapping path="/images/*" exclude="true"/>
+
+    <!-- ADMIN: moi trang /admin/* dung admin-decorator -->
+    <mapping path="/admin/*" decorator="admin-decorator.jsp"/>
+
+    <!-- USER (mac dinh): tat ca trang con lai -->
+    <mapping path="/*" decorator="user-decorator.jsp"/>
+</sitemesh>
