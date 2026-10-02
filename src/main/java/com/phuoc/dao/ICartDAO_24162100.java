@@ -36,4 +36,10 @@ public interface ICartDAO_24162100 {
 
     /** Don hang da dat cua user (status = 1), kem cac dong voi gia luc dat; null neu khong co. */
     Cart_24162100 findOrder(String cartId, int userId);
+
+    /** Lịch sử đơn hàng của user; orderStatus = 0 để lấy tất cả. */
+    List<Cart_24162100> findOrderHistory(int userId, int orderStatus);
+
+    /** Huy don hang: doi orderStatus -> 7 va hoan lai ton kho trong cung transaction. */
+    void cancelOrder(String cartId, int userId);
 }

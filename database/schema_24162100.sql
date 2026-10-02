@@ -105,6 +105,42 @@ BEGIN
 END
 GO
 
+/* ================= Trang thai lich su don hang ================= */
+/* Cart.status van giu 0 = gio hang dang dung, 1 = da dat hang.
+   Cart.orderStatus:
+   1 = Don hang moi
+   2 = Da xac nhan
+   3 = Chuan bi hang
+   4 = Van chuyen
+   5 = Giao hang
+   6 = Da giao
+   7 = Don hang huy
+   8 = Don hang hoan
+*/
+IF COL_LENGTH('dbo.Cart', 'orderStatus') IS NULL
+BEGIN
+    ALTER TABLE Cart ADD orderStatus INT NOT NULL
+        CONSTRAINT DF_Cart_OrderStatus DEFAULT 1;
+END
+GO
+
+/* Don hang da ton tai truoc khi them cot se duoc xem la "Don hang moi". */
+UPDATE Cart
+SET orderStatus = 1
+WHERE status = 1 AND (orderStatus IS NULL OR orderStatus NOT BETWEEN 1 AND 8);
+GO
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_Cart_User_OrderStatus'
+      AND object_id = OBJECT_ID('dbo.Cart')
+)
+BEGIN
+    CREATE INDEX IX_Cart_User_OrderStatus
+        ON Cart(userId, orderStatus, buyDate DESC);
+END
+GO
+
 /* ================= Du lieu mau (chi insert neu bang con trong) ================= */
 IF NOT EXISTS (SELECT 1 FROM UserRoles)
 BEGIN

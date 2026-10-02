@@ -16,6 +16,9 @@
         <a href="${pageContext.request.contextPath}/home">Trang Chủ</a>
         <a href="${pageContext.request.contextPath}/products">Sản phẩm</a>
         <a href="${pageContext.request.contextPath}/cart">Giỏ hàng</a>
+        <c:if test="${not empty currentUser}">
+            <a href="${pageContext.request.contextPath}/order-history">Lịch sử đặt hàng</a>
+        </c:if>
         <c:choose>
             <c:when test="${empty currentUser}">
                 <a href="${pageContext.request.contextPath}/login">Đăng nhập</a>

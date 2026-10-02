@@ -208,8 +208,8 @@ public class CartDAO_24162100 implements ICartDAO_24162100 {
                 total += it.getLineTotal();
             }
 
-            String order = "UPDATE Cart SET status = 1, buyDate = GETDATE(), receiverName = ?, receiverPhone = ?, "
-                    + "receiverAddress = ?, note = ?, paymentMethod = 'COD', totalAmount = ? "
+            String order = "UPDATE Cart SET status = 1, orderStatus = 1, buyDate = GETDATE(), receiverName = ?, receiverPhone = ?, "
+                    + "receiverAddress = ?, note = ?, paymentMethod = 'COD', totalAmount = ?"
                     + "WHERE cartId = ? AND status = 0";
             try (PreparedStatement ps = conn.prepareStatement(order)) {
                 ps.setString(1, receiverName);
@@ -246,7 +246,7 @@ public class CartDAO_24162100 implements ICartDAO_24162100 {
 
     @Override
     public Cart_24162100 findOrder(String cartId, int userId) {
-        String sql = "SELECT cartId, userId, buyDate, status, receiverName, receiverPhone, receiverAddress, "
+        String sql = "SELECT cartId, userId, buyDate, status, orderStatus, receiverName, receiverPhone, receiverAddress, "
                 + "note, paymentMethod, totalAmount FROM Cart WHERE cartId = ? AND userId = ? AND status = 1";
         try (Connection conn = DBConnection_24162100.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -259,6 +259,7 @@ public class CartDAO_24162100 implements ICartDAO_24162100 {
                 c.setUserId(rs.getInt("userId"));
                 c.setBuyDate(rs.getTimestamp("buyDate"));
                 c.setStatus(rs.getInt("status"));
+                c.setOrderStatus(rs.getInt("orderStatus"));
                 c.setReceiverName(rs.getString("receiverName"));
                 c.setReceiverPhone(rs.getString("receiverPhone"));
                 c.setReceiverAddress(rs.getString("receiverAddress"));
@@ -272,4 +273,107 @@ public class CartDAO_24162100 implements ICartDAO_24162100 {
             throw new RuntimeException(e);
         }
     }
+    @Override
+    public List<Cart_24162100> findOrderHistory(int userId, int orderStatus) {
+        String sql = "SELECT cartId, userId, buyDate, status, orderStatus, receiverName, receiverPhone, "
+                + "receiverAddress, note, paymentMethod, totalAmount "
+                + "FROM Cart WHERE userId = ? AND status = 1 "
+                + "AND (? = 0 OR orderStatus = ?) "
+                + "ORDER BY buyDate DESC";
+
+        List<Cart_24162100> orders = new ArrayList<>();
+        try (Connection conn = DBConnection_24162100.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ps.setInt(2, orderStatus);
+            ps.setInt(3, orderStatus);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Cart_24162100 c = new Cart_24162100();
+                    c.setCartId(rs.getString("cartId"));
+                    c.setUserId(rs.getInt("userId"));
+                    c.setBuyDate(rs.getTimestamp("buyDate"));
+                    c.setStatus(rs.getInt("status"));
+                    c.setOrderStatus(rs.getInt("orderStatus"));
+                    c.setReceiverName(rs.getString("receiverName"));
+                    c.setReceiverPhone(rs.getString("receiverPhone"));
+                    c.setReceiverAddress(rs.getString("receiverAddress"));
+                    c.setNote(rs.getString("note"));
+                    c.setPaymentMethod(rs.getString("paymentMethod"));
+                    c.setTotalAmount(rs.getDouble("totalAmount"));
+                    c.setItems(loadItems(conn, c.getCartId(), true));
+                    orders.add(c);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return orders;
+    }
+
+
+    @Override
+    public void cancelOrder(String cartId, int userId) {
+        Connection conn = null;
+        try {
+            conn = DBConnection_24162100.getConnection();
+            conn.setAutoCommit(false);
+
+            // Chi cho phep huy don khi dang o trang thai "Don hang moi".
+            String check = "SELECT orderStatus FROM Cart WHERE cartId = ? AND userId = ? AND status = 1";
+            int currentStatus;
+            try (PreparedStatement ps = conn.prepareStatement(check)) {
+                ps.setString(1, cartId);
+                ps.setInt(2, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new IllegalStateException("Không tìm thấy đơn hàng.");
+                    }
+                    currentStatus = rs.getInt("orderStatus");
+                }
+            }
+
+            if (currentStatus != Cart_24162100.ORDER_NEW) {
+                throw new IllegalStateException("Chỉ có thể hủy đơn hàng mới.");
+            }
+
+            // Hoan lai so luong san pham da tru khi checkout.
+            String restoreStock =
+                    "UPDATE p SET p.amount = p.amount + ci.quantity "
+                  + "FROM Product p JOIN CartItem ci ON p.productId = ci.productId "
+                  + "WHERE ci.cartId = ?";
+            try (PreparedStatement ps = conn.prepareStatement(restoreStock)) {
+                ps.setString(1, cartId);
+                ps.executeUpdate();
+            }
+
+            // Khong xoa don; chi chuyen sang trang thai HUY de van nam trong lich su.
+            String cancel = "UPDATE Cart SET orderStatus = ? WHERE cartId = ? AND userId = ? "
+                          + "AND status = 1 AND orderStatus = ?";
+            try (PreparedStatement ps = conn.prepareStatement(cancel)) {
+                ps.setInt(1, Cart_24162100.ORDER_CANCELLED);
+                ps.setString(2, cartId);
+                ps.setInt(3, userId);
+                ps.setInt(4, Cart_24162100.ORDER_NEW);
+                if (ps.executeUpdate() == 0) {
+                    throw new IllegalStateException("Đơn hàng đã được xử lý hoặc không thể hủy.");
+                }
+            }
+
+            conn.commit();
+        } catch (IllegalStateException e) {
+            rollbackQuietly(conn);
+            throw e;
+        } catch (Exception e) {
+            rollbackQuietly(conn);
+            throw new RuntimeException(e);
+        } finally {
+            if (conn != null) {
+                try { conn.setAutoCommit(true); } catch (Exception ignored) { }
+            }
+            DBConnection_24162100.close(conn);
+        }
+    }
+
 }

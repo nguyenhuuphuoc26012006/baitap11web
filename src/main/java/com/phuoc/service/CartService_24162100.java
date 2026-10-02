@@ -153,4 +153,25 @@ public class CartService_24162100 implements ICartService_24162100 {
         if (orderId == null || orderId.isBlank()) return null;
         return cartDAO.findOrder(orderId, userId);
     }
+
+    @Override
+    public List<Cart_24162100> getOrderHistory(int userId, int orderStatus) {
+        if (orderStatus < 0 || orderStatus > Cart_24162100.ORDER_RETURNED) {
+            orderStatus = 0;
+        }
+        return cartDAO.findOrderHistory(userId, orderStatus);
+    }
+
+    @Override
+    public void cancelOrder(int userId, String orderId) {
+        if (orderId == null || orderId.isBlank()) {
+            throw new IllegalArgumentException("Mã đơn hàng không hợp lệ.");
+        }
+        try {
+            cartDAO.cancelOrder(orderId.trim(), userId);
+        } catch (IllegalStateException e) {
+            throw new IllegalArgumentException(e.getMessage());
+        }
+    }
+
 }

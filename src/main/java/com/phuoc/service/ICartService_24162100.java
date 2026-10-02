@@ -28,4 +28,10 @@ public interface ICartService_24162100 {
     String checkoutCod(int userId, String receiverName, String receiverPhone, String receiverAddress, String note);
 
     Cart_24162100 getOrder(int userId, String orderId);
+
+    /** Lấy lịch sử đơn hàng theo trạng thái; 0 = tất cả. */
+    List<Cart_24162100> getOrderHistory(int userId, int orderStatus);
+
+    /** Huy don hang cua user; chi cho phep khi don dang o trang thai moi. */
+    void cancelOrder(int userId, String orderId);
 }
